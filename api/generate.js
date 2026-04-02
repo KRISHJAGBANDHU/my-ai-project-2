@@ -1,36 +1,38 @@
-export const config = {
-  runtime: "edge",
-};
+export default async function handler(req, res) {
+  try {
+    const { prompt, platforms, tone } = req.body;
 
-export default async function handler(req) {
-  const { prompt, platforms, tone } = await req.json();
+    const fullPrompt = `
+Generate social media posts.
 
-  const fullPrompt = `
-Generate social media content.
-
-Platforms: ${platforms.join(",")}
+Platforms: ${platforms.join(", ")}
 Tone: ${tone}
 Topic: ${prompt}
 
-Write engaging posts.
+Return clear formatted content for each platform.
 `;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01"
-    },
-    body: JSON.stringify({
-      model: "claude-3-sonnet-20240229",
-      max_tokens: 800,
-      messages: [{ role: "user", content: fullPrompt }]
-    })
-  });
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "mistralai/mistral-7b-instruct",
+        messages: [
+          { role: "user", content: fullPrompt }
+        ]
+      })
+    });
 
-  const data = await response.json();
-  const text = data.content?.map(i => i.text || "").join("") || "";
+    const data = await response.json();
 
-  return new Response(text);
+    const text = data.choices?.[0]?.message?.content || "No response";
+
+    res.status(200).json({ text });
+
+  } catch (err) {
+    res.status(500).json({ error: "Failed" });
+  }
 }
