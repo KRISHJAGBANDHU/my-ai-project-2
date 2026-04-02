@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContentAI Premium</title>
+
+<style>
+body {background:#0a0a0a;color:#fff;font-family:sans-serif;margin:0;display:flex;flex-direction:column;height:100vh;}
+.header {padding:15px;border-bottom:1px solid #222;display:flex;justify-content:space-between;}
+.chat {flex:1;overflow:auto;padding:20px;}
+.msg {margin-bottom:15px;}
+.user {text-align:right;}
+.bubble {display:inline-block;padding:10px 15px;border-radius:12px;background:#111;}
+.user .bubble {background:#c8f135;color:#000;}
+.controls {padding:10px;border-top:1px solid #222;}
+textarea {width:100%;background:#111;color:#fff;border:1px solid #333;padding:10px;}
+button {margin-top:8px;padding:10px;background:#c8f135;border:none;cursor:pointer;}
+.pills button {margin:3px;padding:5px 10px;background:#111;color:#aaa;border:1px solid #333;}
+.pills button.active {background:#c8f135;color:#000;}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <div>ContentAI ⚡</div>
+</div>
+
+<div class="pills" id="platforms">
+  <button class="active" data-p="linkedin">LinkedIn</button>
+  <button class="active" data-p="twitter">Twitter</button>
+  <button class="active" data-p="instagram">Instagram</button>
+</div>
+
+<div class="pills" id="tones">
+  <button class="active" data-t="professional">Professional</button>
+  <button data-t="casual">Casual</button>
+  <button data-t="witty">Witty</button>
+</div>
+
+<div class="chat" id="chat"></div>
+
+<div class="controls">
+  <textarea id="input" placeholder="Type your idea..."></textarea>
+  <button onclick="send()">Send</button>
+</div>
+
+<script>
+let platforms = new Set(["linkedin","twitter","instagram"]);
+let tone = "professional";
+
+document.querySelectorAll("#platforms button").forEach(btn=>{
+  btn.onclick=()=>{
+    btn.classList.toggle("active");
+    const p=btn.dataset.p;
+    platforms.has(p)?platforms.delete(p):platforms.add(p);
+  }
+});
+
+document.querySelectorAll("#tones button").forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll("#tones button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    tone=btn.dataset.t;
+  }
+});
+
+function addMsg(text,cls){
+  const chat=document.getElementById("chat");
+  chat.innerHTML+=`<div class="msg ${cls}"><div class="bubble">${text}</div></div>`;
+  chat.scrollTop=chat.scrollHeight;
+}
+
+async function send(){
+  const input=document.getElementById("input");
+  const text=input.value;
+  if(!text) return;
+
+  addMsg(text,"user");
+  input.value="";
+
+  const res=await fetch("/api/generate",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({prompt:text,platforms:[...platforms],tone})
+  });
+
+  const reader=res.body.getReader();
+  let decoder=new TextDecoder();
+  let aiText="";
+
+  addMsg("...", "ai");
+  let lastBubble=document.querySelectorAll(".ai .bubble");
+  lastBubble=lastBubble[lastBubble.length-1];
+
+  while(true){
+    const {done,value}=await reader.read();
+    if(done) break;
+    const chunk=decoder.decode(value);
+    aiText+=chunk;
+    lastBubble.innerText=aiText;
+  }
+}
+</script>
+
+</body>
+</html>
