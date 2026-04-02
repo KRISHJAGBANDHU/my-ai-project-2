@@ -3,13 +3,11 @@ export default async function handler(req, res) {
     const { prompt, platforms, tone } = req.body;
 
     const fullPrompt = `
-Generate social media posts.
+Generate social media posts for:
+${platforms.join(", ")}
 
-Platforms: ${platforms.join(", ")}
 Tone: ${tone}
 Topic: ${prompt}
-
-Return clear formatted content for each platform.
 `;
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -19,7 +17,7 @@ Return clear formatted content for each platform.
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "mistralai/mistral-7b-instruct",
+        model: "openchat/openchat-7b",
         messages: [
           { role: "user", content: fullPrompt }
         ]
@@ -28,11 +26,21 @@ Return clear formatted content for each platform.
 
     const data = await response.json();
 
-    const text = data.choices?.[0]?.message?.content || "No response";
+    console.log("API RESPONSE:", data); // debug
+
+    let text = "";
+
+    if (data.choices && data.choices.length > 0) {
+      text = data.choices[0].message.content;
+    } else if (data.error) {
+      text = "API Error: " + data.error.message;
+    } else {
+      text = "No response from AI";
+    }
 
     res.status(200).json({ text });
 
   } catch (err) {
-    res.status(500).json({ error: "Failed" });
+    res.status(500).json({ text: "Server error: " + err.message });
   }
 }
